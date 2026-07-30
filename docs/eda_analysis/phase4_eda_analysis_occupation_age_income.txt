@@ -1,0 +1,153 @@
+EDA ANALYSIS: DEFAULT RATE BY OCCUPATION, AGE, AND INCOME
+Credit Risk & Loan Default Prediction Project — Phase 4
+
+Charts covered in this analysis:
+    1. Default Rate by Occupation
+    2. Default Rate by Age Group
+    3. Default Rate by Income Band (see also: income_band_risk_analysis.txt
+       for the full investigative deep-dive on this chart)
+
+
+===========================================================
+1. DEFAULT RATE BY OCCUPATION
+===========================================================
+
+OBSERVATION
+-----------
+Highest default rates:
+    1. Low-skill Laborers        (highest)
+    2. Drivers
+    3. Waiters/Barmen staff
+
+Lowest default rates:
+    - Accountants
+    - High-skill Tech staff
+
+INTERPRETATION
+--------------
+This pattern lines up with income stability and job security rather
+than income level alone. Low-skill labor, driving, and service
+occupations (waitstaff) tend to have:
+    - More variable or seasonal income
+    - Less job security (easier to lose employment, fewer contractual
+      protections)
+    - Typically lower financial cushion / savings buffer
+
+Accountants and high-skill tech staff, by contrast, tend to have:
+    - More stable, salaried employment
+    - Higher and more predictable income
+    - Greater financial resilience to short-term shocks
+
+BUSINESS IMPLICATION
+---------------------
+Occupation type is a meaningful, low-cost risk signal available at
+the point of application, before any credit history is even
+considered. It should be retained as a modeling feature, and can
+support tiered underwriting policies (e.g. differing affordability
+buffers by occupation risk tier) at the business level.
+
+CAVEAT
+------
+Occupation type may correlate with (and partially proxy for) income
+level and employment type, both of which are separately captured
+elsewhere in the model. Feature importance / SHAP analysis in
+Phase 6 should be used to confirm occupation still contributes
+independent predictive value once these other features are included,
+rather than assuming this bivariate pattern holds in the full model.
+
+
+===========================================================
+2. DEFAULT RATE BY AGE GROUP
+===========================================================
+
+OBSERVATION
+-----------
+Default rate declines steadily and consistently as age increases.
+Applicants in their 20s show the highest default rates; each
+subsequent age band shows a lower rate, continuing through the oldest
+age group observed (60-70).
+
+INTERPRETATION
+--------------
+This is a genuine, monotonic risk gradient rather than a flat
+baseline risk across ages. Plausible drivers include:
+    - Younger applicants are earlier in their careers, with less
+      established income and employment history
+    - Younger applicants have had less time to build credit history
+      or savings buffers
+    - Financial habits and obligations (e.g. dependents, established
+      housing costs) stabilize with age
+
+This should NOT be read as "default risk exists equally across all
+ages" — the data shows a clear, actionable gradient, not a constant
+baseline.
+
+BUSINESS IMPLICATION
+---------------------
+Age (or a proxy such as years of employment / EMPLOYMENT_TO_AGE_RATIO,
+already engineered in Phase 3) is a strong, simple risk signal.
+Younger applicants may warrant additional affordability checks,
+smaller initial credit limits, or closer alignment between loan size
+and demonstrated income stability, rather than blanket restriction.
+
+CAVEAT
+------
+Age-based lending decisions can raise fair-lending / discrimination
+concerns depending on jurisdiction and regulatory context (relevant
+given this project's South African NCA framing). Age should inform
+model features and risk-based pricing, not blanket eligibility
+rules, and any operational use should be reviewed against applicable
+consumer credit regulation.
+
+
+===========================================================
+3. DEFAULT RATE BY INCOME BAND
+===========================================================
+
+OBSERVATION
+-----------
+Initial pattern appeared non-monotonic: "Medium" income band showed a
+higher default rate than "Low" income, which was unexpected.
+
+INTERPRETATION (full investigation in income_band_risk_analysis.txt)
+--------------
+Deeper investigation showed this was NOT a genuine effect of income
+level. The "Very Low" income band contains a disproportionately high
+share of pensioners (31.4% vs. 9.6-18.4% in other bands), who have
+low but highly stable, guaranteed income. This artificially lowers
+the Very Low band's observed default rate and masks the true
+underlying pattern.
+
+Once this compositional effect is accounted for (via
+ANNUITY_TO_INCOME_RATIO, which reflects actual affordability burden),
+the real pattern is a clean, monotonic decline in risk as the share
+of income committed to loan repayment decreases — from 24.0% of
+income at the lowest tier down to 12.4% at the highest.
+
+BUSINESS IMPLICATION
+---------------------
+Income LEVEL alone is an incomplete and potentially misleading risk
+signal. Income STABILITY / TYPE (e.g. pensioner vs. working-age,
+salaried vs. commercial/self-employed) and affordability ratios
+(payment burden relative to income) are more reliable predictors of
+default than raw income level.
+
+RECOMMENDATION
+--------------
+Any dashboard or model built on this data should segment or control
+for income type when presenting income-based risk findings, to avoid
+presenting a misleading or confusing headline pattern.
+
+
+===========================================================
+CROSS-CUTTING TAKEAWAY FOR THE PROJECT
+===========================================================
+Across all three charts, a consistent theme emerges: STABILITY
+(of income, employment, and life stage) is a stronger and more
+consistent driver of default risk than raw LEVEL (of income,
+job prestige, or age alone). This theme should carry through into
+the dashboard narrative, the feature engineering already completed
+in Phase 3 (e.g. EMPLOYMENT_TO_AGE_RATIO, ANNUITY_TO_INCOME_RATIO,
+NO_BUREAU_HISTORY flags), and the eventual model interpretation in
+Phase 6 (SHAP analysis) — where stability-related features should be
+expected to carry meaningful predictive weight.

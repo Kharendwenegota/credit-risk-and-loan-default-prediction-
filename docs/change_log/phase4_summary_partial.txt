@@ -1,0 +1,119 @@
+PHASE 4: EXPLORATORY DATA ANALYSIS (EDA) — SUMMARY
+Credit Risk & Loan Default Prediction Project
+
+Objective:
+Explore default rate patterns across key applicant and loan
+attributes using the feature-engineered dataset, to surface business-
+relevant risk drivers ahead of Power BI/Tableau dashboard-building
+and modeling.
+
+Input:
+    data/processed/application_train_features.csv (307,507 rows x 347 columns)
+
+Status: IN PROGRESS
+    - Six charts completed and analyzed (below)
+    - Risk score distribution (EXT_SOURCE_1/2/3, and later predicted
+      probability distribution) deferred to be completed alongside
+      Phase 5 (Modeling)
+    - Power BI / Tableau dashboard build not yet started
+
+
+ACTIONS TAKEN
+-------------
+1. Resolved pending verification carried over from Phase 3: confirmed
+   affordability ratio columns (DEBT_TO_INCOME_RATIO,
+   ANNUITY_TO_INCOME_RATIO, CREDIT_TERM, EMPLOYMENT_TO_AGE_RATIO)
+   contain no infinite values before proceeding with EDA
+
+2. Produced and analyzed six default-rate charts, saved to
+   outputs/figures/:
+     - default_by_occupation.png
+     - default_by_age.png
+     - default_by_income.png
+     - default_by_loan_amount.png
+     - default_by_credit_cost.png
+     - default_by_region.png
+
+3. For two charts (income band, loan amount band) that showed
+   unexpected non-monotonic ("hump-shaped") default rate patterns,
+   conducted a full root-cause investigation before accepting the
+   pattern at face value, rather than presenting a surface-level
+   reading. Full write-ups saved separately:
+     - income_band_risk_analysis.txt (income band deep dive)
+     - phase4_eda_analysis_occupation_age_income.txt
+       (occupation, age, income — full analysis)
+     - phase4_eda_analysis_loan_cost_region.txt
+       (loan amount, implied credit cost, region rating — full analysis)
+
+
+KEY FINDINGS SUMMARY
+----------------------
+Occupation:
+    Highest risk: Low-skill Laborers, Drivers, Waiters/Barmen staff
+    Lowest risk: Accountants, High-skill Tech staff
+    Driver: income stability / job security, not occupation prestige
+    alone
+
+Age:
+    Clean, monotonic decline in default risk as age increases
+    (20s = highest risk, 60s = lowest)
+    Caveat: age-based decisioning has fair-lending implications;
+    should inform features/pricing, not blanket eligibility rules
+
+Income band:
+    Raw income level showed a misleading non-monotonic pattern
+    (Medium band appeared riskiest). Root cause: "Very Low" income
+    band is disproportionately pensioners (31.4% vs 9.6-18.4% in
+    other bands) with stable guaranteed income, masking true risk.
+    Once accounted for, ANNUITY_TO_INCOME_RATIO shows the real, clean
+    risk gradient (24.0% of income at lowest tier down to 12.4% at
+    highest)
+
+Loan amount band:
+    Also showed a misleading non-monotonic pattern, driven by TWO
+    separate confounds: pensioner concentration at the low end
+    (same effect as income), and implicit pre-existing creditworthiness
+    screening at the high end (larger loans go to already-vetted,
+    lower-risk applicants despite carrying a higher relative payment
+    burden). Loan amount should not be read as a standalone causal
+    risk driver.
+
+Implied credit cost ratio (substitute for interest rate, which is not
+present in the source data):
+    Clean, largely monotonic increase in default risk as cost of
+    credit relative to goods/loan value increases (6.7% at lowest to
+    11.4% at highest), with one minor single-band irregularity noted
+    but not further investigated
+
+Region rating (substitute for geography, which is anonymized in the
+source data):
+    Clean, fully monotonic increase in default risk from best-rated
+    (4.8%) to worst-rated (11.1%) regions. No confound found; most
+    straightforwardly trustworthy chart of the six.
+
+
+CROSS-CUTTING TAKEAWAYS
+-------------------------
+1. STABILITY over LEVEL: across occupation, age, and income, income/
+   employment STABILITY consistently predicts risk better than raw
+   LEVEL (income amount, job prestige, age alone).
+
+2. Raw "amount" or "level" metrics are not always safe to interpret
+   at face value: both income level and loan amount produced
+   misleading non-monotonic patterns traceable to compositional
+   confounds (pensioner concentration) or hidden selection effects
+   (implicit underwriting pre-screening reflected in loan size).
+   Ratio-based and directly risk-relevant metrics (ANNUITY_TO_INCOME_
+   RATIO, IMPLIED_CREDIT_COST_RATIO, REGION_RATING_CLIENT) proved
+   more reliable and should be favored as headline dashboard metrics.
+
+
+REMAINING WORK BEFORE PHASE 4 IS FULLY CLOSED OUT
+----------------------------------------------------
+1. Risk score distribution chart (EXT_SOURCE_1/2/3 and/or predicted
+   probability distribution) — deferred to be built alongside
+   Phase 5 modeling, since predicted-probability distribution
+   requires a trained model to exist
+2. Power BI dashboard build (using processed CSV as data source)
+3. Tableau dashboard build
+4. Final Phase 4 verification and closeout once dashboards are built

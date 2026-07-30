@@ -1,0 +1,72 @@
+PHASE 1: DATA EXPLORATION — SUMMARY
+Credit Risk & Loan Default Prediction Project
+
+Objective:
+Understand the structure, quality, and key characteristics of the main
+dataset before cleaning or modeling.
+
+Dataset:
+application_train.csv (Home Credit Default Risk, Kaggle)
+
+
+ACTIONS TAKEN
+-------------
+1. Loaded the dataset and inspected its shape and structure
+2. Checked the target variable (TARGET) distribution for class imbalance
+3. Quantified missing values across all columns
+4. Reviewed data types across the dataset
+5. Reviewed column meanings for key fields (SK_ID_CURR, TARGET,
+   loan/applicant attributes, document flags, credit bureau inquiry
+   fields), using HomeCredit_columns_description.csv as the reference
+   data dictionary
+6. Ran descriptive statistics on key numeric fields (AMT_INCOME_TOTAL,
+   AMT_CREDIT, AMT_ANNUITY, DAYS_BIRTH, DAYS_EMPLOYED)
+
+
+KEY FINDINGS
+------------
+Dataset size:
+    307,511 rows x 122 columns
+
+Class imbalance:
+    91.9% non-default (TARGET=0) vs. 8.1% default (TARGET=1)
+    Significant imbalance requiring class-weighting/SMOTE and
+    non-accuracy metrics (ROC-AUC, precision/recall, F1) in modeling
+
+Missing data pattern:
+    Concentrated in building/property characteristics (COMMONAREA_*,
+    LIVINGAPARTMENTS_*, LANDAREA_*, etc.), ~60-70% missing.
+    Likely missing-not-at-random, tied to loan/collateral type rather
+    than random data loss
+
+Data types:
+    65 float, 41 int, 16 categorical (string) columns
+
+DAYS_EMPLOYED anomaly:
+    Contains a sentinel placeholder value of 365,243 (~1,000 years)
+    used to represent unemployed/retired applicants, mixed into an
+    otherwise numeric field. Distorts the mean significantly if left
+    untreated
+
+DAYS_BIRTH:
+    Stored as negative days-before-application; converts cleanly to a
+    plausible age range (~20-69 years)
+
+AMT_INCOME_TOTAL outlier:
+    Max value (117,000,000) is ~580x the 75th percentile. Likely a
+    data entry error or extreme outlier requiring investigation
+
+AMT_ANNUITY:
+    12 missing values out of 307,511. Trivial, low-impact
+
+
+ISSUES IDENTIFIED FOR PHASE 2 (CLEANING)
+-----------------------------------------
+1. Fix DAYS_EMPLOYED placeholder (flag + correct)
+2. Convert DAYS_BIRTH to interpretable age
+3. Investigate/cap AMT_INCOME_TOTAL outlier
+4. Create missing-indicator flags for high-missingness columns rather
+   than blind imputation/dropping
+5. Handle CODE_GENDER XNA placeholder category
+6. Encode 16 categorical columns for modeling
+7. Impute or drop 12 missing AMT_ANNUITY values

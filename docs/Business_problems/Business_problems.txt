@@ -1,0 +1,89 @@
+1. Default Risk Scoring at the Point of Application
+
+Business question: "Given only what we know at the moment someone applies, how likely are they to default?"
+
+This is the core problem — using application_train's demographic, income, employment, and property fields (plus bureau history merged in) to produce a probability score per applicant. This directly answers the loan officer's real-time question: approve, decline, or price the risk. It's also your primary ML deliverable (Phase 4) and the Streamlit app (Phase 6).
+
+
+2. Early Warning Signals from External Credit Behavior
+
+Business question: "Is this applicant already showing signs of financial distress with other lenders?"
+
+bureau.csv and bureau_balance.csv let you build features like number of active credit lines elsewhere, overdue amounts, and recent credit inquiries (AMT_REQ_CREDIT_BUREAU_*). This answers a more specific business need than #1: detecting applicants who look fine on the surface (stable income, employed) but are already overextended elsewhere — a classic hidden-risk pattern banks care about.
+
+
+3. Repayment Behavior Prediction from Prior Relationship History
+
+Business question: "For returning customers, does their track record with us predict future default?"
+
+previous_application.csv, installments_payments.csv, and POS_CASH_balance.csv/credit_card_balance.csv let you build features like late payment frequency, early repayment behavior, and how often past applications were refused. This answers a retention/relationship-based question — existing customers can often be risk-assessed more accurately than brand-new applicants, and it's a natural segment to highlight in your dashboard (new vs. returning applicant risk).
+
+
+4. Portfolio-Level Risk Segmentation for Business Strategy
+
+Business question: "Where is default risk concentrated across our loan book, and what's driving it?"
+
+This is a dashboard/BI question, not just a model question — default rate by income band, occupation, loan type, age group, region. It answers what senior stakeholders (not underwriters) actually want: "should we tighten lending criteria for X segment?" or "which products/regions are dragging down portfolio performance?"
+
+
+5. Optimal Loan Terms / Affordability Fit
+
+Business question: "Is this applicant being offered a loan amount and repayment structure they can actually sustain?"
+
+Using AMT_CREDIT, AMT_ANNUITY, AMT_INCOME_TOTAL, and repayment history from installments_payments.csv, you can construct debt-to-income and payment-to-income ratios and show how mismatched loan terms (large annuity relative to income) correlate with default. This is a more prescriptive/actionable business problem than pure risk scoring — it points toward how to restructure an offer to reduce risk, not just whether to approve it.
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+Here's the feature engineering checklist, organized by source table and mapped back to the business problems they serve.
+
+1. From bureau.csv + bureau_balance.csv (serves Problem #2 — early warning from external credit)
+
+Feature to engineer	-- What it captures
+
+BUREAU_COUNT	-- Total number of credit lines at other institutions
+BUREAU_ACTIVE_COUNT	-- Number of currently active external credit lines
+BUREAU_OVERDUE_COUNT	-- Number of bureau credit lines with overdue payments
+BUREAU_AVG_DAYS_CREDIT	-- Average age of external credit history (longer = more established)
+BUREAU_MAX_OVERDUE_AMT	-- Largest overdue amount across external credit lines
+BUREAU_CREDIT_TYPE_DIVERSITY	-- Number of distinct credit types held (credit card, car loan, mortgage, etc.)
+BUREAU_BALANCE_WORST_STATUS	-- Worst monthly delinquency status seen in bureau_balance (0=current, 5=written off)
+
+2. From previous_application.csv (serves Problem #3 — prior relationship history)
+
+Feature to engineer	-- What it captures
+
+PREV_APP_COUNT	-- Number of prior applications with Home Credit
+PREV_APPROVED_COUNT / PREV_REFUSED_COUNT	-- Approval/refusal history — repeated refusals are a strong risk signal
+PREV_APPROVAL_RATE	-- Ratio of approved to total previous applications
+PREV_AVG_CREDIT_AMT	-- Average size of previously requested credit
+PREV_CANCELLED_COUNT	-- Applications the client themselves cancelled (can signal indecision or improved offers elsewhere)
+
+
+3. From installments_payments.csv (serves Problem #3 and Problem #5 — repayment behavior + affordability)
+
+Feature to engineer	-- What it captures
+
+INSTALLMENT_LATE_COUNT	-- Number of installments paid late
+INSTALLMENT_LATE_RATIO	-- % of past installments paid late
+INSTALLMENT_AVG_DAYS_LATE	-- Average number of days late when payments were late
+INSTALLMENT_UNDERPAYMENT_COUNT	-- Number of times paid amount was less than scheduled amount
+INSTALLMENT_PAYMENT_CONSISTENCY	-- Std. deviation of days-late (volatility, not just average)
+
+
+4. From POS_CASH_balance.csv + credit_card_balance.csv (serves Problem #3 and Problem #5)
+
+Feature to engineer	-- What it captures
+
+POS_DPD_MAX	-- Max "days past due" seen on past POS/cash loans
+CC_UTILIZATION_AVG	-- Average credit card balance relative to credit limit (classic risk indicator)
+CC_MIN_PAYMENT_ONLY_COUNT	-- Number of months only the minimum payment was made (revolving debt risk)
+
+
+5. From application_train.csv itself (serves Problem #1 and Problem #5 — already partly done in Phase 2)
+
+Feature to engineer	-- What it captures
+
+DEBT_TO_INCOME_RATIO	-- AMT_CREDIT / AMT_INCOME_TOTAL_CAPPED
+ANNUITY_TO_INCOME_RATIO	AMT_ANNUITY / AMT_INCOME_TOTAL_CAPPED — the core affordability metric
+CREDIT_TERM	-- AMT_CREDIT / AMT_ANNUITY — implied loan length in periods
+EMPLOYMENT_TO_AGE_RATIO	DAYS_EMPLOYED / DAYS_BIRTH — employment stability relative to life stage

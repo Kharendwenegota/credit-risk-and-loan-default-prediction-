@@ -1,0 +1,104 @@
+PHASE 3: FEATURE ENGINEERING — SUMMARY
+Credit Risk & Loan Default Prediction Project
+
+Objective:
+Enrich the cleaned application-level dataset with features derived
+from the applicant's external credit history, prior relationship with
+Home Credit, and repayment behavior, by merging in the auxiliary
+relational tables. Also engineer affordability ratios to directly
+support the "optimal loan terms" business question.
+
+Input:
+    data/processed/application_train_cleaned.csv   (307,507 rows x 313 columns)
+Output:
+    data/processed/application_train_features.csv  (307,507 rows x 347 columns)
+
+
+ACTIONS TAKEN
+-------------
+1. bureau.csv + bureau_balance.csv (external credit history)
+   - Aggregated bureau_balance to bureau-loan level (worst delinquency
+     status, number of months on record)
+   - Merged into bureau, then aggregated to applicant level:
+     BUREAU_COUNT, BUREAU_ACTIVE_COUNT, BUREAU_OVERDUE_COUNT,
+     BUREAU_AVG_DAYS_CREDIT, BUREAU_MAX_OVERDUE_AMT,
+     BUREAU_CREDIT_TYPE_DIVERSITY, BUREAU_BALANCE_WORST_STATUS
+   - Added NO_BUREAU_HISTORY flag for applicants with no external
+     credit record; count-type features filled with 0, rate/average
+     features left as NaN (missing data, not zero risk)
+
+2. previous_application.csv (prior relationship history)
+   - Aggregated to applicant level: PREV_APP_COUNT,
+     PREV_APPROVED_COUNT, PREV_REFUSED_COUNT, PREV_CANCELLED_COUNT,
+     PREV_AVG_CREDIT_AMT, PREV_APPROVAL_RATE
+   - Added NO_PREV_APP_HISTORY flag for first-time applicants
+
+3. installments_payments.csv (repayment behavior)
+   - Calculated per-installment lateness (DAYS_LATE, IS_LATE) and
+     underpayment (UNDERPAYMENT, IS_UNDERPAID)
+   - Aggregated to applicant level: INSTALLMENT_LATE_COUNT,
+     INSTALLMENT_TOTAL_COUNT, INSTALLMENT_AVG_DAYS_LATE,
+     INSTALLMENT_STD_DAYS_LATE (payment consistency),
+     INSTALLMENT_UNDERPAYMENT_COUNT, INSTALLMENT_LATE_RATIO
+   - Added NO_INSTALLMENT_HISTORY flag
+
+4. POS_CASH_balance.csv (past POS/cash loan delinquency)
+   - Aggregated to applicant level: POS_DPD_MAX, POS_DPD_DEF_MAX,
+     POS_MONTHS_COUNT
+   - Added NO_POS_CASH_HISTORY flag
+
+5. credit_card_balance.csv (revolving credit behavior)
+   - Calculated per-month utilization (balance / credit limit) and
+     minimum-payment-only flag
+   - Aggregated to applicant level: CC_UTILIZATION_AVG,
+     CC_MIN_PAYMENT_ONLY_COUNT, CC_MONTHS_COUNT
+   - Added NO_CREDIT_CARD_HISTORY flag
+
+6. Affordability ratios (from application_train directly)
+   - DEBT_TO_INCOME_RATIO = AMT_CREDIT / AMT_INCOME_TOTAL_CAPPED
+   - ANNUITY_TO_INCOME_RATIO = AMT_ANNUITY / AMT_INCOME_TOTAL_CAPPED
+   - CREDIT_TERM = AMT_CREDIT / AMT_ANNUITY (implied loan length)
+   - EMPLOYMENT_TO_AGE_RATIO = DAYS_EMPLOYED / DAYS_BIRTH
+
+7. Consolidated all five auxiliary-table merges into a single cell
+   that rebuilds app_train_fe fresh from the Phase 2 checkpoint on
+   every run, to prevent duplicate-merge errors from re-running cells
+   out of order (see notes below)
+
+8. Saved final feature-engineered dataset to data/processed/
+
+
+VERIFICATION CHECKS
+--------------------
+- Final shape confirmed: 307,507 rows x 347 columns
+- Missing-history flags created and applied consistently across all
+  five auxiliary tables (NO_BUREAU_HISTORY, NO_PREV_APP_HISTORY,
+  NO_INSTALLMENT_HISTORY, NO_POS_CASH_HISTORY, NO_CREDIT_CARD_HISTORY)
+
+PENDING / NOT YET VERIFIED:
+- Distribution check (describe()) on the four affordability ratios
+  has not yet been reviewed
+- Infinity check on affordability ratios not yet run — CREDIT_TERM
+  and ANNUITY_TO_INCOME_RATIO divide by AMT_ANNUITY and income
+  respectively, so any zero denominators would produce inf values
+  that must be handled (capped or set to NaN) before modeling
+- ACTION REQUIRED before Phase 5 (modeling): run and review these
+  two checks, and clean any inf values found
+
+
+NOTES FOR NEXT PHASES
+-----------------------
+- A recurring notebook issue this phase: re-running merge cells
+  multiple times (e.g. via "Run All" after partial edits) caused
+  NameError and MergeError failures due to non-idempotent merge
+  operations compounding on each other. Fixed by consolidating all
+  merges into a single cell that always rebuilds app_train_fe from
+  the Phase 2 checkpoint (app_train.copy()) before merging, making
+  the cell safe to re-run any number of times.
+  Lesson: merge/join operations in notebooks should be written to be
+  idempotent (safe to re-run) wherever possible.
+- All "no history" flags follow the same pattern deliberately: count
+  features are filled with 0 (absence of activity), while rate and
+  average features are left as NaN (absence of data is not the same
+  as a value of zero) — tree-based models planned for Phase 5 handle
+  NaN natively, so no forced imputation was applied here.

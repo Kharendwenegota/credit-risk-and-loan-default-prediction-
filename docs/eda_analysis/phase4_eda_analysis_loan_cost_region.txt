@@ -1,0 +1,184 @@
+EDA ANALYSIS: LOAN AMOUNT, IMPLIED CREDIT COST, AND REGION RATING
+Credit Risk & Loan Default Prediction Project — Phase 4
+
+Charts covered in this analysis:
+    4. Default Rate by Loan Amount Band
+    5. Default Rate by Implied Credit Cost Ratio
+    6. Default Rate by Region Rating
+
+
+===========================================================
+4. DEFAULT RATE BY LOAN AMOUNT (AMT_CREDIT)
+===========================================================
+
+OBSERVATION
+-----------
+Non-monotonic ("hump-shaped") pattern:
+    Very Low   : 7.2%
+    Low        : 9.2%
+    Medium     : 10.0%  (peak)
+    High       : 7.9%
+    Very High  : 6.1%   (lowest)
+
+This mirrors the same non-monotonic shape found in the income band
+analysis (see phase4_eda_analysis_occupation_age_income.txt) and was
+investigated using the same method: check for compositional
+confounds before trusting the raw pattern.
+
+INVESTIGATION
+--------------
+Pensioner share by loan amount band:
+    Very Low   : 23.4%
+    Low        : 17.8%
+    Medium     : 17.0%
+    High       : 17.4%
+    Very High  : 13.9%
+
+Annuity-to-income ratio by loan amount band:
+    Very Low   : 0.124
+    Low        : 0.153
+    Medium     : 0.191
+    High       : 0.208
+    Very High  : 0.231
+
+FINDING — TWO SEPARATE CONFOUNDS IDENTIFIED
+---------------------------------------------
+1) Low end (Very Low band): Nearly double the pensioner concentration
+   of the Very High band (23.4% vs 13.9%). As established in the
+   income analysis, pensioners carry low but stable, guaranteed
+   income and are genuinely lower-risk — this artificially suppresses
+   the observed default rate for the smallest loans, same masking
+   effect seen with income.
+
+2) High end (High / Very High bands): Annuity-to-income ratio rises
+   smoothly and monotonically as loan amount increases — i.e. larger
+   loans genuinely carry a proportionally larger repayment burden
+   relative to income. Under a simple affordability model, this
+   should INCREASE default risk. Instead, observed default risk
+   DECREASES at these bands. This indicates a second, different
+   confound: applicants who qualify for very large loans have likely
+   already been pre-screened by Home Credit's own underwriting
+   process (e.g. stronger EXT_SOURCE credit bureau scores, more
+   stable employment, better collateral) — meaning loan size is not
+   randomly assigned, but partly reflects prior assessed
+   creditworthiness. This is functionally a data leakage risk if
+   loan amount is read as a standalone causal risk driver.
+
+CONCLUSION
+----------
+Loan amount, taken alone, is NOT a clean or reliable standalone risk
+signal. It is confounded in opposite directions at each end of its
+range: pensioner concentration suppresses risk at the low end, and
+implicit pre-existing creditworthiness screening suppresses risk at
+the high end.
+
+DASHBOARD / BUSINESS IMPLICATION
+----------------------------------
+Do NOT present "loan amount vs default rate" as a standalone insight
+without this caveat attached — in isolation it risks a dangerous
+misreading (e.g. "larger loans default less, so we should approve
+larger loans"), when the real driver is the applicant quality that
+already determined loan eligibility, not the loan size itself.
+Any model built on this data should treat loan amount as one input
+among several correlated features (income, credit bureau scores,
+employment stability) rather than a standalone lever.
+
+
+===========================================================
+5. DEFAULT RATE BY IMPLIED CREDIT COST RATIO
+===========================================================
+
+NOTE ON METRIC
+---------------
+Home Credit's dataset does not include an explicit interest rate
+field. IMPLIED_CREDIT_COST_RATIO was engineered as a substitute:
+    (AMT_CREDIT - AMT_GOODS_PRICE) / AMT_GOODS_PRICE
+representing how much more the applicant is financing beyond the
+cash price of the goods/loan purpose — a reasonable proxy for cost of
+credit given the available fields. This substitution is noted
+explicitly here and should be labeled clearly (not as literal
+"interest rate") wherever it appears in the dashboard.
+
+OBSERVATION
+-----------
+    Very Low   : 6.7%
+    Low        : 4.7%   (dip, slightly below Very Low)
+    Medium     : 6.7%
+    High       : 9.5%
+    Very High  : 11.4%  (highest)
+
+INTERPRETATION
+--------------
+The overall trend is clean and intuitive: default risk rises sharply
+as the implied cost of credit increases, with a clear jump between
+Medium and High/Very High bands. This is the expected pattern — the
+more expensive credit is relative to the underlying goods/loan
+value, the higher the observed default risk.
+
+One minor irregularity: the "Low" band sits slightly below "Very Low"
+rather than continuing a smooth increase from the bottom. This is a
+small, single-band deviation (not a full inverted pattern like the
+loan amount chart) and was not investigated further, but should be
+noted as a minor caveat rather than presented as a perfectly smooth
+monotonic trend.
+
+DASHBOARD / BUSINESS IMPLICATION
+----------------------------------
+This is a strong, largely trustworthy risk signal and a good
+dashboard-ready chart. Cost of credit relative to loan purpose value
+appears to be a genuine, monotonic (with one minor exception) driver
+of default risk — supports pricing- and terms-based risk
+segmentation.
+
+
+===========================================================
+6. DEFAULT RATE BY REGION RATING
+===========================================================
+
+NOTE ON METRIC
+---------------
+Home Credit's dataset anonymizes geography; there is no city/province
+field. REGION_RATING_CLIENT (1=best, 3=worst) is Home Credit's own
+anonymized region quality rating and is used here as the geographic
+proxy. For dashboard purposes, this can be conceptually framed as an
+urban/rural or provincial risk-tier analogy (consistent with this
+project's South African market framing) but should be labeled clearly
+as an anonymized proxy, not real geographic data.
+
+OBSERVATION
+-----------
+    Rating 1 (best)  : 4.8%
+    Rating 2          : 7.9%
+    Rating 3 (worst)  : 11.1%
+
+INTERPRETATION
+--------------
+Clean, fully monotonic increase in default risk as region rating
+worsens. This matches intuition directly and required no further
+investigation — no compositional confound was found or suspected.
+
+DASHBOARD / BUSINESS IMPLICATION
+----------------------------------
+This is a clean, trustworthy, dashboard-ready finding. Region rating
+is a strong standalone risk signal and supports geographic/regional
+risk-based pricing or portfolio concentration analysis.
+
+
+===========================================================
+CROSS-CUTTING TAKEAWAY (UPDATED)
+===========================================================
+Combined with the earlier occupation/age/income analysis, a second
+theme emerges: several seemingly simple "amount" or "level" metrics
+(income level, loan amount) are NOT safe to interpret in isolation —
+both showed non-monotonic patterns that trace back to compositional
+confounds (pensioner concentration) or hidden selection effects
+(implicit pre-screening reflected in loan size). By contrast, ratio-
+based and directly risk-relevant metrics (ANNUITY_TO_INCOME_RATIO,
+IMPLIED_CREDIT_COST_RATIO, REGION_RATING_CLIENT) showed clean,
+trustworthy, largely monotonic relationships with default risk.
+
+RECOMMENDATION FOR DASHBOARD DESIGN:
+Favor ratio-based and directly risk-relevant features as headline
+dashboard metrics. Where raw "level" metrics (income, loan amount)
+are shown, pair them with the relevant confound caveat established
+here, or avoid presenting them as standalone causal drivers.

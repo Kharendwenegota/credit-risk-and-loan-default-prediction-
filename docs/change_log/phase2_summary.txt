@@ -1,0 +1,83 @@
+PHASE 2: DATA CLEANING — SUMMARY
+Credit Risk & Loan Default Prediction Project
+
+Objective:
+Fix the data quality issues identified during Phase 1 exploration, and
+prepare the dataset for feature engineering, EDA, and modeling.
+
+Input:
+    data/raw/application_train.csv        (307,511 rows x 122 columns)
+Output:
+    data/processed/application_train_cleaned.csv   (307,507 rows x 313 columns)
+
+
+ACTIONS TAKEN
+-------------
+1. DAYS_EMPLOYED anomaly
+   - Created a binary flag column (DAYS_EMPLOYED_ANOMALY) marking rows
+     where DAYS_EMPLOYED equaled the placeholder value 365243
+     (~55,374 rows affected)
+   - Replaced the placeholder value with NaN so the column reflects
+     genuine employment duration only
+
+2. DAYS_BIRTH conversion
+   - Converted from negative days-before-application into a new
+     AGE_YEARS column (range: ~20.5 to 69.1 years, mean ~44)
+
+3. AMT_INCOME_TOTAL outlier handling
+   - Investigated top 5 highest incomes; found one clear data error
+     (117,000,000 income listed for a "Laborer")
+   - Capped income at the 99.5th percentile into a new
+     AMT_INCOME_TOTAL_CAPPED column, preserving the original column
+     for reference
+
+4. CODE_GENDER placeholder handling
+   - Found 4 rows with an "XNA" (unknown/invalid) gender value
+   - Dropped these 4 rows (negligible impact on 307,511-row dataset)
+
+5. Missing-value indicator flags
+   - For all columns with >40% missingness (49 columns, mostly
+     building/property characteristics), created a parallel
+     "<column>_MISSING" binary flag
+   - Rationale: missingness in these fields is likely
+     missing-not-at-random (tied to loan/collateral type) and may
+     itself be predictive, so flags preserve that signal ahead of
+     any future imputation decisions
+
+6. Categorical encoding
+   - Identified 16 categorical (object/string) columns
+   - Applied one-hot encoding (pd.get_dummies, including a dummy
+     category for missing values) to convert all categorical
+     columns into numeric binary columns
+   - Column count expanded from 174 (pre-encoding, post-cleaning) to
+     313 (post-encoding)
+
+7. Saved cleaned, encoded dataset to data/processed/ for use in
+   later phases (EDA, modeling)
+
+
+VERIFICATION CHECKS
+--------------------
+- No duplicate columns in final dataset
+- TARGET class balance preserved post-cleaning: 91.93% no-default /
+  8.07% default (consistent with pre-cleaning distribution, minus
+  the 4 dropped XNA rows)
+- Reloaded saved CSV to confirm shape matches in-memory dataframe
+  (307,507 rows x 313 columns) — confirms save/load integrity
+
+
+NOTES FOR NEXT PHASES
+-----------------------
+- Original (uncapped/unencoded) columns were preserved alongside new
+  engineered ones (e.g. AMT_INCOME_TOTAL and AMT_INCOME_TOTAL_CAPPED
+  both exist) rather than overwritten, in case comparison is useful
+  later
+- Tree-based models (Random Forest, XGBoost, LightGBM) planned for
+  Phase 4 can handle the wide one-hot-encoded feature set and
+  remaining NaNs natively, so no further imputation was forced at
+  this stage
+- A notebook state/execution-order issue occurred mid-phase
+  (re-running cells out of sequence caused a KeyError); resolved by
+  restarting the kernel and re-running all cells top-to-bottom.
+  Lesson: always use "Restart & Run All" before trusting notebook
+  output, especially before saving final files
