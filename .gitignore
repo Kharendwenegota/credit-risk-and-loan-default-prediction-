@@ -28,3 +28,4 @@ outputs/models/*.joblib
 
 # Kaggle credentials
 kaggle.json
+dashboards/powerbi/credit_risk_dashboard_data.csv
