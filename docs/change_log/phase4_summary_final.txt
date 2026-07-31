@@ -1,0 +1,134 @@
+PHASE 4: EXPLORATORY DATA ANALYSIS & DASHBOARDS — FINAL SUMMARY
+Credit Risk & Loan Default Prediction Project
+
+Objective:
+Explore default rate patterns across key applicant and loan
+attributes, and translate findings into interactive Power BI and
+Tableau dashboards for non-technical stakeholders.
+
+Input:
+    data/processed/application_train_features.csv (307,507 rows x 347 columns)
+    dashboards/powerbi/credit_risk_dashboard_data.csv (trimmed, ~26 cols)
+
+Status: COMPLETE
+(Risk score distribution chart intentionally deferred to Phase 5,
+since it depends on model output — see note at end)
+
+
+PART A — PYTHON EDA (notebooks/04_eda.ipynb)
+-----------------------------------------------
+Produced and analyzed six default-rate charts:
+    - Default Rate by Occupation
+    - Default Rate by Age Band
+    - Default Rate by Income Band
+    - Default Rate by Loan Amount Band
+    - Default Rate by Implied Credit Cost Ratio (interest rate
+      substitute — not present in source data)
+    - Default Rate by Region Rating (geography substitute —
+      anonymized in source data)
+
+Two charts (Income Band, Loan Amount Band) showed misleading
+non-monotonic patterns and were investigated in full before being
+trusted or dashboarded. Full write-ups:
+    - income_band_risk_analysis.txt
+    - phase4_eda_analysis_occupation_age_income.txt
+    - phase4_eda_analysis_loan_cost_region.txt
+
+Key findings (see above files for full detail):
+    - Occupation: risk tracks job/income stability, not prestige alone
+    - Age: clean monotonic decline in risk with age
+    - Income band: raw level is misleading (pensioner concentration
+      confound); ANNUITY_TO_INCOME_RATIO is the reliable signal
+    - Loan amount band: misleading in two directions (pensioner
+      concentration at low end, implicit credit pre-screening at
+      high end) — not a standalone risk driver
+    - Implied credit cost ratio: clean, largely monotonic signal
+    - Region rating: clean, fully monotonic signal, most
+      straightforwardly trustworthy of the six
+
+
+PART B — POWER BI DASHBOARD
+------------------------------
+File: dashboards/powerbi/credit_risk_dashboard.pbix
+
+Built:
+    - Trimmed data export (~26 columns) from full feature-engineered
+      dataset for dashboard performance and usability
+    - DAX measures: Default Rate, Total Applicants, Total Defaults
+    - KPI card row: Total Applicants, Total Defaults, Default Rate
+    - Six bar chart visuals (one per EDA finding above)
+    - Caveat text boxes on Income Band and Loan Amount Band charts,
+      explaining the confounds found during investigation
+    - Color coding: clean/trustworthy charts (Occupation, Age, Credit
+      Cost, Region) given a confident solid color; confounded charts
+      (Income, Loan Amount) given a muted/desaturated color to signal
+      "interesting but needs context" at a glance
+    - Slicers added (Occupation, Age Band) for interactive
+      cross-filtering across all visuals
+    - Dashboard title and subtitle added
+
+Issues found and fixed during build:
+    - Loan Amount Band chart initially missing x-axis category labels
+      (axis toggle was off) — fixed
+    - Default Rate values initially unformatted (no % sign) — fixed
+      by formatting the measure itself as Percentage, applying
+      automatically across all visuals and the KPI card
+    - Income Band chart initially sorted by value rather than natural
+      band order, obscuring the confound pattern — fixed by sorting
+      by the INCOME_BAND field directly
+
+
+PART C — TABLEAU DASHBOARD
+-----------------------------
+File: dashboards/tableau/credit_risk_dashboard.twbx
+
+Built:
+    - Same trimmed CSV as Power BI, connected as a Text File data
+      source
+    - Calculated fields: Default Rate, Total Applicants, Total
+      Defaults
+    - Six sheets (one per EDA finding), assembled into one dashboard
+    - KPI row built via single-value text sheets (Tableau's
+      equivalent of Power BI cards)
+    - Same caveat text boxes as Power BI, for consistency between
+      the two dashboards
+    - Interactive filter (Occupation Type) applied across all
+      worksheets using the same data source
+    - Same clean/confounded color-coding scheme as Power BI, for
+      visual consistency across both tools
+    - Dashboard title added
+
+Issues found and fixed during build:
+    - Occupation chart initially unsorted (alphabetical) and included
+      a "nan" bar from applicants with missing OCCUPATION_TYPE —
+      fixed by sorting descending by Default Rate and filtering out
+      the null category
+    - Income Band and Loan Amount Band charts initially sorted
+      alphabetically (High, Low, Medium, Very High, Very Low),
+      obscuring the confound pattern entirely — fixed by setting a
+      manual sort order (Very Low -> Very High) on both fields,
+      applied globally via Default Properties
+    - Default Rate values initially unformatted — fixed by setting
+      Percentage number format on the calculated field directly
+
+
+VERIFICATION / QUALITY NOTES
+-------------------------------
+- Both dashboards were built from the same underlying trimmed CSV
+  export, ensuring consistent numbers between Power BI and Tableau
+- Both dashboards carry the same caveat text for the two confounded
+  charts, so neither tool presents a misleading finding without
+  context
+- A consistent color-coding convention (confident color for
+  trustworthy charts, muted color for confounded charts) was applied
+  across both tools
+
+
+DEFERRED TO PHASE 5
+----------------------
+Risk score distribution chart (EXT_SOURCE_1/2/3 external credit
+bureau scores, and later the model's predicted probability
+distribution) was intentionally deferred, since the predicted-
+probability version requires a trained model to exist. This will be
+completed alongside Phase 5 (Modeling) and added to both dashboards
+retroactively if time permits.
