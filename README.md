@@ -28,7 +28,8 @@ This project uses the [Home Credit Default Risk](https://www.kaggle.com/c/home-c
 │   ├── 01_data_exploration.ipynb
 │   ├── 02_data_cleaning.ipynb
 │   ├── 03_feature_engineering.ipynb
-│   └── 04_eda.ipynb
+│   ├── 04_eda.ipynb
+│   └── 05_modeling.ipynb
 ├── src/                   # reusable Python modules
 ├── sql/                   # SQL queries for data analysis
 ├── dashboards/
@@ -37,7 +38,7 @@ This project uses the [Home Credit Default Risk](https://www.kaggle.com/c/home-c
 ├── app/                   # Streamlit risk-scoring app (planned)
 ├── outputs/
 │   ├── figures/            # exported chart images
-│   └── models/             # saved model files (planned)
+│   └── models/             # lightgbm_final_model.pkl
 ```
 
 ## Methodology & Progress
@@ -71,7 +72,7 @@ Analyzed default rate patterns across six dimensions: occupation, age, income, l
 - **Income band:** the apparent "medium income = highest risk" pattern was a compositional artifact — the lowest income band contained a disproportionate share of pensioners (31% vs. ~10–18% elsewhere), whose income is low but stable and guaranteed, artificially suppressing that band's observed risk. The real, reliable signal is `ANNUITY_TO_INCOME_RATIO`, which shows a clean, monotonic relationship with default risk.
 - **Loan amount band:** confounded in two directions — pensioner concentration at the low end, and implicit credit pre-screening at the high end (larger loans are disproportionately issued to already-vetted, lower-risk applicants).
 
-**Overall takeaway:** income and employment *stability* is a more reliable predictor of default than raw income *level* — a theme that carried through the dashboard design and will inform feature selection in modeling.
+**Overall takeaway:** income and employment *stability* is a more reliable predictor of default than raw income *level* — a theme that carried through the dashboard design and directly informed which features mattered most in modeling.
 
 Interactive dashboards were built in both **Power BI** and **Tableau**, each including:
 - KPI summary cards (total applicants, total defaults, overall default rate)
@@ -82,14 +83,18 @@ Interactive dashboards were built in both **Power BI** and **Tableau**, each inc
 Full investigative write-ups are included in the repository for transparency:
 `income_band_risk_analysis.txt`, `phase4_eda_analysis_occupation_age_income.txt`, `phase4_eda_analysis_loan_cost_region.txt`
 
-### 🔄 Phase 5 — Modeling *(in progress)*
-- Baseline: Logistic Regression (interpretable benchmark)
-- Comparing against Random Forest, XGBoost, and LightGBM
-- Addressing class imbalance via class weighting / SMOTE
-- Evaluating using ROC-AUC, Precision, Recall, and F1-score (prioritizing recall on defaulters, given the asymmetric business cost of a missed default)
+### ✅ Phase 5 — Modeling
+Trained and compared four classification models on an 80/20 stratified train/test split, addressing the class imbalance identified in Phase 1 via class weighting (Logistic Regression, Random Forest, LightGBM) and `scale_pos_weight` (XGBoost).
 
-### ⚪ Phase 6 — Interpretability *(planned)*
+Evaluation prioritized **ROC-AUC, Precision, Recall, and F1 on the default class** over overall accuracy, since a naive "always predict no default" model would score ~92% accuracy while catching zero actual defaulters — the exact trap identified during Phase 1's class imbalance analysis.
+
+**Final model: LightGBM** — tied with XGBoost for the best ROC-AUC (0.778), and selected over XGBoost for its higher recall on defaulters, which better reflects the asymmetric business cost of a missed default versus a false alarm on a good applicant. Random Forest underperformed both the linear baseline and the gradient boosting models, a known pattern on datasets with many sparse, correlated one-hot-encoded columns.
+
+See `phase5_summary.txt` for full methodology notes, including a LightGBM-specific column-naming issue encountered and resolved during training.
+
+### 🔄 Phase 6 — Interpretability *(in progress)*
 - SHAP values to explain individual predictions and global feature importance — important for regulatory transparency in credit decisioning
+- Risk score distribution chart (deferred from Phase 4), using the final model's predicted probability distribution
 
 ### ⚪ Phase 7 — Deployment *(planned)*
 - Interactive Streamlit app: a loan officer inputs applicant details (income, loan amount, employment length, age) and receives a real-time **Low Risk / High Risk** classification
@@ -100,14 +105,14 @@ Full investigative write-ups are included in the repository for transparency:
 
 ## Key Results
 
-*To be completed in Phase 5.*
+| Model | ROC-AUC | Precision (default) | Recall (default) | F1 (default) | Accuracy |
+|---|---|---|---|---|---|
+| Logistic Regression | 0.764 | 0.17 | 0.69 | 0.27 | 0.70 |
+| Random Forest | 0.751 | 0.17 | 0.64 | 0.27 | 0.72 |
+| XGBoost | 0.778 | 0.19 | 0.67 | 0.29 | 0.74 |
+| **LightGBM (final)** | **0.778** | 0.18 | **0.69** | 0.29 | 0.73 |
 
-| Model | ROC-AUC | Precision | Recall | F1 |
-|---|---|---|---|---|
-| Logistic Regression | — | — | — | — |
-| Random Forest | — | — | — | — |
-| XGBoost | — | — | — | — |
-| LightGBM | — | — | — | — |
+*Precision/Recall/F1 reported for the minority (default) class, since this is the class of actual business interest — accuracy alone is misleading on a dataset with ~92%/8% class imbalance.*
 
 ## Author
 
